@@ -65,7 +65,7 @@ CREATE VARIABLE csv_file_path VARCHAR(900);
 CREATE VARIABLE rec_count INT;
 CREATE VARIABLE log_cmd VARCHAR(1000);
 
-CREATE TABLE #temp_xlinkfile 
+CREATE TABLE #temp_xlinkfile
 (
   xprofile_ref INT
   ,parent_object_ref INT
@@ -100,10 +100,10 @@ SET xtimestamp = CAST(LEFT(CAST(GETDATE() AS VARCHAR), 16) AS DATETIME);
 IF SUBSTR(log_file_path, LENGTH(log_file_path), 1) = CHAR(92) THEN
   SET log_file_path = SUBSTR(log_file_path, 1, LENGTH(log_file_path) - 1);
 END IF;
-SET csv_file_path = log_file_path + '\housekeeping_linkfile_purge_by_age_and_type' 
+SET csv_file_path = log_file_path + '\housekeeping_linkfile_purge_by_age_and_type'
    || REPLACE(REPLACE(REPLACE(LEFT(CAST(xtimestamp AS VARCHAR), 16), '-', ''), ':', ''), ' ', '')
    || '.csv';
-SET log_file_path = log_file_path + '\housekeeping_linkfile_purge_by_age_and_type' 
+SET log_file_path = log_file_path + '\housekeeping_linkfile_purge_by_age_and_type'
    || REPLACE(REPLACE(REPLACE(LEFT(CAST(xtimestamp AS VARCHAR), 16), '-', ''), ':', ''), ' ', '')
    || '.log';
 
@@ -124,9 +124,9 @@ SET type_exclude_list = '''' + REPLACE(type_exclude_list, ',', ''',''') + '''';
 -- Create sql string to get purge items for PERSON
 SET sql = '
 INSERT INTO #temp_xlinkfile
-(xprofile_ref, parent_object_ref, file_name, displayname, type, record_status, PARENT_DISPLAYNAME, create_timestamp, 
+(xprofile_ref, parent_object_ref, file_name, displayname, type, record_status, PARENT_DISPLAYNAME, create_timestamp,
  update_timestamp, xmode, xstatus, xupdate_timestamp, parent_object_name, xerror_value, xerror_message)
-SELECT TOP ' || CONVERT(VARCHAR(8), choke_limit) || ' 
+SELECT TOP ' || CONVERT(VARCHAR(8), choke_limit) || '
   l.linkfile_ref AS xprofile_ref
   ,l.parent_object_ref
   ,l.file_name
@@ -137,7 +137,7 @@ SELECT TOP ' || CONVERT(VARCHAR(8), choke_limit) || '
   ,l.create_timestamp
   ,l.update_timestamp
   ,''D'' AS xmode
-  ,20 AS xstatus 
+  ,20 AS xstatus
   ,CAST( ''' || CAST(xtimestamp AS VARCHAR(16)) || ''' AS DATETIME) AS xupdate_timestamp
   ,l.parent_object_name
   ,CAST(NULL AS INT) AS xerror_value
@@ -155,7 +155,7 @@ ORDER BY l.update_timestamp
 EXECUTE (sql);
 
 -- Get count of records to process
-SELECT COUNT(*) INTO rec_count FROM #temp_xlinkfile 
+SELECT COUNT(*) INTO rec_count FROM #temp_xlinkfile
 WHERE parent_object_name = 'person';
 
 -- Check record is more than zero
@@ -168,7 +168,7 @@ IF rec_count != 0 THEN
 -- Add log entry
     SET log_cmd = 'Processing ' || CONVERT(VARCHAR(12), rec_count) || ' xlinkfile_person records';
     EXECUTE ('xp_cmdshell ''echo ' || CAST(GETDATE() AS VARCHAR(23)) || ': ' || log_cmd || ' >> "' || log_file_path || '"''');
-    
+
 -- Load xlinfile_person table
     INSERT INTO xlinkfile_person
     (xprofile_ref, xmode, xstatus, xupdate_timestamp)
@@ -176,23 +176,23 @@ IF rec_count != 0 THEN
       xprofile_ref, xmode, xstatus, xupdate_timestamp
     FROM #temp_xlinkfile
     WHERE parent_object_name = 'person';
-    
+
 -- Run XWEB
     CALL xput('xlinkfile_person', NULL, NULL, NULL, 'Y');
 
 -- Capture results
     UPDATE #temp_xlinkfile
-    SET 
+    SET
       x.xstatus = xlf.xstatus
       ,x.xerror_value = xlf.xerror_value
-      ,x.xerror_message = xlf.xerror_message  
+      ,x.xerror_message = xlf.xerror_message
     FROM #temp_xlinkfile x
       INNER JOIN xlinkfile_person xlf ON x.xprofile_ref = xlf.xprofile_ref
     WHERE xlf.xmode = 'D'
       AND xlf.xupdate_timestamp = CAST(xtimestamp AS VARCHAR);
-    
+
 -- Log results
-    SELECT ('Procssed xlinkfile_person ' || 
+    SELECT ('Procssed xlinkfile_person ' ||
       CAST(SUM(CASE WHEN xstatus >= 40 AND xerror_value = 0
                     THEN 1 ELSE 0 END) AS VARCHAR) || ' passed, ' ||
       CAST(SUM(CASE WHEN xstatus >= 40 AND xerror_value != 0
@@ -200,14 +200,14 @@ IF rec_count != 0 THEN
       CAST(SUM(CASE WHEN xstatus < 40 THEN 1 ELSE 0 END) AS VARCHAR) || ' unprocessed') INTO log_cmd
     FROM #temp_xlinkfile
     WHERE parent_object_name = 'person';
-    
+
     EXECUTE ('xp_cmdshell ''echo ' || CAST(GETDATE() AS VARCHAR(23)) || ': ' || log_cmd || ' >> "' || log_file_path || '"''');
- 
-  ELSE 
+
+  ELSE
     SET log_cmd = 'ERROR: DX not running for xlinkfile_person';
     EXECUTE ('xp_cmdshell ''echo ' || CAST(GETDATE() AS VARCHAR(23)) || ': ' || log_cmd || ' >> "' || log_file_path || '"''');
   END IF;
-ELSE 
+ELSE
   SET log_cmd = 'No records to process for xlinkfile_person';
   EXECUTE ('xp_cmdshell ''echo ' || CAST(GETDATE() AS VARCHAR(23)) || ': ' || log_cmd || ' >> "' || log_file_path || '"''');
 END IF;
@@ -218,7 +218,7 @@ GO
 EXECUTE (REPLACE(sql, 'person', 'organisation'));
 
 -- Get count of records to process
-SELECT COUNT(*) INTO rec_count FROM #temp_xlinkfile 
+SELECT COUNT(*) INTO rec_count FROM #temp_xlinkfile
 WHERE parent_object_name = 'organisation';
 
 -- Check record is more than zero
@@ -231,7 +231,7 @@ IF rec_count != 0 THEN
 -- Add log entry
     SET log_cmd = 'Processing ' || CONVERT(VARCHAR(12), rec_count) || ' xlinkfile_organisation records';
     EXECUTE ('xp_cmdshell ''echo ' || CAST(GETDATE() AS VARCHAR(23)) || ': ' || log_cmd || ' >> "' || log_file_path || '"''');
-    
+
 -- Load xlinfile_organiation table
     INSERT INTO xlinkfile_organisation
     (xprofile_ref, xmode, xstatus, xupdate_timestamp)
@@ -245,30 +245,30 @@ IF rec_count != 0 THEN
 
 -- Capture results
     UPDATE #temp_xlinkfile
-    SET 
+    SET
       x.xstatus = xlf.xstatus
       ,x.xerror_value = xlf.xerror_value
-      ,x.xerror_message = xlf.xerror_message  
+      ,x.xerror_message = xlf.xerror_message
     FROM #temp_xlinkfile x
       INNER JOIN xlinkfile_organisation xlf ON x.xprofile_ref = xlf.xprofile_ref
     WHERE xlf.xmode = 'D'
       AND xlf.xupdate_timestamp = CAST(xtimestamp AS VARCHAR);
-    
+
 -- Log results
-    SELECT ('Procssed xlinkfile_organisation ' || 
+    SELECT ('Procssed xlinkfile_organisation ' ||
       CAST(SUM(CASE xstatus WHEN 40 THEN 1 ELSE 0 END) AS VARCHAR) || ' passed, ' ||
       CAST(SUM(CASE WHEN xstatus > 40 THEN 1 ELSE 0 END) AS VARCHAR) || ' failed, ' ||
       CAST(SUM(CASE WHEN xstatus < 40 THEN 1 ELSE 0 END) AS VARCHAR) || ' unprocessed') INTO log_cmd
     FROM #temp_xlinkfile
     WHERE parent_object_name = 'organisation';
-    
+
     EXECUTE ('xp_cmdshell ''echo ' || CAST(GETDATE() AS VARCHAR(23)) || ': ' || log_cmd || ' >> "' || log_file_path || '"''');
- 
-  ELSE 
+
+  ELSE
     SET log_cmd = 'ERROR: DX not running for xlinkfile_organisation';
     EXECUTE ('xp_cmdshell ''echo ' || CAST(GETDATE() AS VARCHAR(23)) || ': ' || log_cmd || ' >> "' || log_file_path || '"''');
   END IF;
-ELSE 
+ELSE
   SET log_cmd = 'No records to process for xlinkfile_organisation';
   EXECUTE ('xp_cmdshell ''echo ' || CAST(GETDATE() AS VARCHAR(23)) || ': ' || log_cmd || ' >> "' || log_file_path || '"''');
 END IF;
@@ -279,7 +279,7 @@ GO
 EXECUTE (REPLACE(sql, 'person', 'opportunity'));
 
 -- Get count of records to process
-SELECT COUNT(*) INTO rec_count FROM #temp_xlinkfile 
+SELECT COUNT(*) INTO rec_count FROM #temp_xlinkfile
 WHERE parent_object_name = 'opportunity';
 
 -- Check record is more than zero
@@ -292,7 +292,7 @@ IF rec_count != 0 THEN
 -- Add log entry
     SET log_cmd = 'Processing ' || CONVERT(VARCHAR(12), rec_count) || ' xlinkfile_opportunity records';
     EXECUTE ('xp_cmdshell ''echo ' || CAST(GETDATE() AS VARCHAR(23)) || ': ' || log_cmd || ' >> "' || log_file_path || '"''');
-    
+
 -- Load xlinfile_organiation table
     INSERT INTO xlinkfile_opportunity
     (xprofile_ref, xmode, xstatus, xupdate_timestamp)
@@ -306,30 +306,30 @@ IF rec_count != 0 THEN
 
 -- Capture results
     UPDATE #temp_xlinkfile
-    SET 
+    SET
       x.xstatus = xlf.xstatus
       ,x.xerror_value = xlf.xerror_value
-      ,x.xerror_message = xlf.xerror_message  
+      ,x.xerror_message = xlf.xerror_message
     FROM #temp_xlinkfile x
       INNER JOIN xlinkfile_opportunity xlf ON x.xprofile_ref = xlf.xprofile_ref
     WHERE xlf.xmode = 'D'
       AND xlf.xupdate_timestamp = CAST(xtimestamp AS VARCHAR);
-    
+
 -- Log results
-    SELECT ('Procssed xlinkfile_opportunity ' || 
+    SELECT ('Procssed xlinkfile_opportunity ' ||
       CAST(SUM(CASE xstatus WHEN 40 THEN 1 ELSE 0 END) AS VARCHAR) || ' passed, ' ||
       CAST(SUM(CASE WHEN xstatus > 40 THEN 1 ELSE 0 END) AS VARCHAR) || ' failed, ' ||
       CAST(SUM(CASE WHEN xstatus < 40 THEN 1 ELSE 0 END) AS VARCHAR) || ' unprocessed') INTO log_cmd
     FROM #temp_xlinkfile
     WHERE parent_object_name = 'opportunity';
-    
+
     EXECUTE ('xp_cmdshell ''echo ' || CAST(GETDATE() AS VARCHAR(23)) || ': ' || log_cmd || ' >> "' || log_file_path || '"''');
- 
-  ELSE 
+
+  ELSE
     SET log_cmd = 'ERROR: DX not running for xlinkfile_opportunity';
     EXECUTE ('xp_cmdshell ''echo ' || CAST(GETDATE() AS VARCHAR(23)) || ': ' || log_cmd || ' >> "' || log_file_path || '"''');
   END IF;
-ELSE 
+ELSE
   SET log_cmd = 'No records to process for xlinkfile_opportunity';
   EXECUTE ('xp_cmdshell ''echo ' || CAST(GETDATE() AS VARCHAR(23)) || ': ' || log_cmd || ' >> "' || log_file_path || '"''');
 END IF;
@@ -339,15 +339,15 @@ GO
 -- Write CSV of records purged
 EXECUTE ('
 UNLOAD
-SELECT 
-  ''"linkfile_ref","parent_obj_name","parent_obj_ref",'' ||             
+SELECT
+  ''"linkfile_ref","parent_obj_name","parent_obj_ref",'' ||
   ''"file_name","name","parent_name","type","record_status",'' ||
   ''"create_timestamp","update_timestamp","xmode","xstatus",'' ||
   ''"xupdate","xerror_value","xerror_message"''
 UNION ALL
 SELECT
-  ''"'' || CAST(xprofile_ref AS VARCHAR) || 
-  ''","'' || parent_object_name || 
+  ''"'' || CAST(xprofile_ref AS VARCHAR) ||
+  ''","'' || parent_object_name ||
   ''","'' || CAST(parent_object_ref AS VARCHAR) ||
   ''","'' || file_name ||
   ''","'' || displayname ||
